@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.cloudflare.com/ wrangler.json",
+  "name": "eficiencia-em-campo",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-26",
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS"
+  }
+}
