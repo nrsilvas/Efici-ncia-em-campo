@@ -1,10 +1,17 @@
 {
-  "$schema": "https://schema.cloudflare.com/ wrangler.json",
+  "$schema": "https://schema.cloudflare.com/wrangler.json",
   "name": "eficiencia-em-campo",
   "main": "worker.js",
   "compatibility_date": "2026-11-26",
   "assets": {
     "directory": "./",
     "binding": "ASSETS"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "eficienciaemcampo",
+      "database_id": "3baae03d-7737-4e13-9b08-6cb98c329dc4"
+    }
+  ]
 }
