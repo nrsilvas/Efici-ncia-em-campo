@@ -1,3 +1,5 @@
+// Worker "Eficiência em Campo" — serve o HTML (assets) e a API de dados em D1.
+// Requer um binding D1 chamado DB (Settings > Bindings no painel da Cloudflare).
 const COLECOES = new Set(["acoes", "pontos", "keyusers", "config", "meta"]);
 const MAX_BODY = 900 * 1024; // linhas do D1 aceitam até ~2 MB; margem de segurança
 
@@ -66,25 +68,3 @@ export default {
     }
   },
 };
-
-O wrangler.jsonc é curto, então também deixo o conteúdo aqui, caso o download dele dê problema:
-
-jsonc
-{
-  "$schema": "https://schema.cloudflare.com/wrangler.json",
-  "name": "eficiencia-em-campo",
-  "main": "worker.js",
-  "compatibility_date": "2026-11-26",
-  "assets": {
-    "directory": "./",
-    "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "eficienciaemcampo",
-      "database_id": "3baae03d-7737-4e13-9b08-6cb98c329dc4"
-    }
-  ]
-}
