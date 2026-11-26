@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1166,63 +1165,39 @@ const Local = {
   },
   save() { try { localStorage.setItem(LS, JSON.stringify({ acoes: S.acoes, pontos: S.pontos, ku: S.ku, cfg: S.cfg })); } catch (e) {} }
 };
-let db = null;
-const filas = {};
-function enfileirar(chave, fn) {
-  const p = (filas[chave] || Promise.resolve()).then(fn).catch(err => {
-    aviso(err && (err.code === "permission_denied" || err.code === "not_granted") ? "Você não tem permissão para editar esta página." : "Não foi possível salvar. Tente novamente.");
-  });
-  filas[chave] = p; return p;
-}
-const Store = {
-  setPonto(id, dados) {
-    S.pontos[id] = { ...(S.pontos[id] || {}), ...dados }; renderTudo();
-    if (db) return enfileirar("p/" + id, () => db.collection("pontos").doc(id).set({ ...S.pontos[id] }));
-    Local.save();
-  },
-  delPonto(id) {
-    delete S.pontos[id]; renderTudo();
-    if (db) return enfileirar("p/" + id, () => db.collection("pontos").doc(id).delete());
-    Local.save();
-  },
-  addPonto(texto) {
-    const ordem = Math.max(-1, ...Object.values(S.pontos).map(p => p.ordem ?? 0)) + 1;
-    if (db) { const ref = db.collection("pontos").doc(); S.pontos[ref.id] = { texto, ordem }; renderTudo(); return enfileirar("p/" + ref.id, () => ref.set({ texto, ordem })); }
-    S.pontos["p" + Date.now()] = { texto, ordem }; renderTudo(); Local.save();
-  },
-  addKU(dados) {
-    if (db) { const ref = db.collection("keyusers").doc(); S.ku[ref.id] = dados; renderTudo(); return enfileirar("k/" + ref.id, () => ref.set(dados)); }
-    S.ku["k" + Date.now()] = dados; renderTudo(); Local.save();
-  },
-  delKU(id) {
-    delete S.ku[id]; renderTudo();
-    if (db) return enfileirar("k/" + id, () => db.collection("keyusers").doc(id).delete());
-    Local.save();
-  },
-  setAcao(id, dados) {
-    S.acoes[id] = { ...(S.acoes[id] || {}), ...dados }; renderTudo();
-    if (db) return enfileirar("a/" + id, () => db.collection("acoes").doc(id).set({ ...S.acoes[id] }));
-    Local.save();
-  },
-  delAcao(id) {
-    delete S.acoes[id]; renderTudo();
-    if (db) return enfileirar("a/" + id, () => db.collection("acoes").doc(id).delete());
-    Local.save();
-  },
-  addAcao(dados) {
-    const ordem = Math.max(0, ...Object.values(S.acoes).map(a => a.ordem ?? 0)) + 1;
-    const novo = { ...dados, ordem };
-    let id;
-    if (db) { const ref = db.collection("acoes").doc(); id = ref.id; S.acoes[id] = novo; renderTudo(); enfileirar("a/" + id, () => ref.set(novo)); }
-    else { id = "a" + Date.now(); S.acoes[id] = novo; renderTudo(); Local.save(); }
-    return id;
-  },
-  setCfg(parte, chave, dados) {
-    S.cfg[parte] = { ...(S.cfg[parte] || {}) };
-    S.cfg[parte][chave] = { ...(S.cfg[parte][chave] || {}), ...dados }; renderTudo();
-    if (db) return enfileirar("c/" + parte, () => db.collection("config").doc(parte).set(JSON.parse(JSON.stringify(S.cfg[parte]))));
-    Local.save();
+let db = null; const filas = {};
+function enfileirar(chave, fn) { const p=(filas[chave]||Promise.resolve()).then(fn).catch(err=>aviso(err&& (err.code==="permission_denied"||err.code==="not_granted")?"Você não tem permissão para editar esta página.":"Não foi possível salvar. Tente novamente.")); filas[chave]=p; return p; }
+async function apiDB(collection,id,method,data){const url=id?`/api/data/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`:`/api/data/${encodeURIComponent(collection)}`;const r=await fetch(url,{method,headers:{"Content-Type":"application/json"},body:data===undefined?undefined:JSON.stringify(data)});if(!r.ok)throw new Error(await r.text()||`HTTP ${r.status}`);return r.status===204?null:r.json();}
+const DBClient = {
+  collection(col) {
+    return {
+      doc(id) {
+        return { set(data) { return apiDB(col,id,"PUT",data); }, delete() { return apiDB(col,id,"DELETE"); } };
+      },
+      onSnapshot(fn,errorFn) {
+        let active=true;
+        const update=async()=>{
+          try {
+            const rows=await apiDB(col,null,"GET");
+            if(active) fn({docs:rows.map(row=>({id:row.id,data:()=>row.data}))});
+          } catch(e) { if(active && errorFn) errorFn(e); }
+        };
+        update(); const timer=setInterval(update,4000);
+        return ()=>{active=false;clearInterval(timer);};
+      }
+    };
   }
+};
+const Store={
+ setPonto(id,dados){S.pontos[id]={...(S.pontos[id]||{}),...dados};renderTudo();if(db)return enfileirar("p/"+id,()=>db.collection("pontos").doc(id).set(S.pontos[id]));Local.save()},
+ delPonto(id){delete S.pontos[id];renderTudo();if(db)return enfileirar("p/"+id,()=>db.collection("pontos").doc(id).delete());Local.save()},
+ addPonto(texto){const ordem=Math.max(-1,...Object.values(S.pontos).map(p=>p.ordem??0))+1;const id="p"+crypto.randomUUID();S.pontos[id]={texto,ordem};renderTudo();if(db)return enfileirar("p/"+id,()=>db.collection("pontos").doc(id).set({texto,ordem}));Local.save()},
+ addKU(dados){const id="k"+crypto.randomUUID();S.ku[id]=dados;renderTudo();if(db)return enfileirar("k/"+id,()=>db.collection("keyusers").doc(id).set(dados));Local.save()},
+ delKU(id){delete S.ku[id];renderTudo();if(db)return enfileirar("k/"+id,()=>db.collection("keyusers").doc(id).delete());Local.save()},
+ setAcao(id,dados){S.acoes[id]={...(S.acoes[id]||{}),...dados};renderTudo();if(db)return enfileirar("a/"+id,()=>db.collection("acoes").doc(id).set(S.acoes[id]));Local.save()},
+ delAcao(id){delete S.acoes[id];renderTudo();if(db)return enfileirar("a/"+id,()=>db.collection("acoes").doc(id).delete());Local.save()},
+ addAcao(dados){const ordem=Math.max(0,...Object.values(S.acoes).map(a=>a.ordem??0))+1;const novo={...dados,ordem};const id="a"+crypto.randomUUID();S.acoes[id]=novo;renderTudo();if(db)enfileirar("a/"+id,()=>db.collection("acoes").doc(id).set(novo));else Local.save();return id},
+ setCfg(parte,chave,dados){S.cfg[parte]={...(S.cfg[parte]||{})};S.cfg[parte][chave]={...(S.cfg[parte][chave]||{}),...dados};renderTudo();if(db)return enfileirar("c/"+parte,()=>db.collection("config").doc(parte).set(JSON.parse(JSON.stringify(S.cfg[parte]))));Local.save()}
 };
 
 /* ---------- renderização ---------- */
@@ -1898,19 +1873,9 @@ document.addEventListener("click", e => {
 document.addEventListener("keydown", e => { if (e.key === "Escape") { const m = document.querySelector(".menu-exp"); if (m) { m.remove(); $("#exportar").focus(); } } });
 
 /* ---------- inicialização ---------- */
-function modoLocal() { const d = Local.load(); Object.assign(S, d); S.modo = "local"; renderTudo(); }
-renderTudo();
-if (window.claude && typeof window.claude.use === "function") {
-  window.claude.use("db").then(ns => {
-    if (!ns) return modoLocal();
-    db = ns; S.modo = "db"; renderTudo();
-    const assinar = (col, fn) => db.collection(col).onSnapshot(snap => { fn(snap); renderTudo(); }, () => aviso("Conexão com os dados interrompida. Recarregue a página."));
-    assinar("acoes", snap => { const r = {}; snap.docs.forEach(d => r[d.id] = { ...d.data() }); S.acoes = r; });
-    assinar("pontos", snap => { const r = {}; snap.docs.forEach(d => r[d.id] = { ...d.data() }); S.pontos = r; });
-    assinar("keyusers", snap => { const r = {}; snap.docs.forEach(d => r[d.id] = { ...d.data() }); S.ku = r; });
-    assinar("config", snap => { const r = { cads: {}, plano: {}, udi: {} }; snap.docs.forEach(d => r[d.id] = JSON.parse(JSON.stringify(d.data()))); S.cfg = r; });
-  }).catch(modoLocal);
-} else modoLocal();
+function modoLocal(){const d=Local.load();Object.assign(S,d);S.modo="local";renderTudo()}
+async function iniciarD1(){try{const teste=await fetch("/api/test-db");if(!teste.ok)throw new Error("D1 indisponível");db=DBClient;S.modo="db";const assinar=(col,fn)=>db.collection(col).onSnapshot(snap=>{fn(snap);renderTudo()},()=>aviso("Conexão com os dados interrompida. Recarregue a página."));assinar("acoes",snap=>{const r={};snap.docs.forEach(d=>r[d.id]={...d.data()});S.acoes=r});assinar("pontos",snap=>{const r={};snap.docs.forEach(d=>r[d.id]={...d.data()});S.pontos=r});assinar("keyusers",snap=>{const r={};snap.docs.forEach(d=>r[d.id]={...d.data()});S.ku=r});assinar("config",snap=>{const r={cads:{},plano:{},udi:{}};snap.docs.forEach(d=>r[d.id]=JSON.parse(JSON.stringify(d.data())));S.cfg=r})}catch(e){aviso("Não foi possível conectar ao banco compartilhado. O sistema será aberto localmente.");modoLocal()}}
+renderTudo();iniciarD1();
 </script>
 </body>
 </html>
